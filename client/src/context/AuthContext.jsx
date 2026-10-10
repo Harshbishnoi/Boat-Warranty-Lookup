@@ -103,6 +103,27 @@ export function AuthProvider({
     return response;
   };
 
+  const loginWithGoogle = async (credential) => {
+    const response = await apiRequest(
+      "/auth/google",
+      {
+        method: "POST",
+        body: JSON.stringify({ credential }),
+      }
+    );
+
+    const newToken = response.data.token;
+
+    if (typeof window !== "undefined") {
+      localStorage.setItem("auth_token", newToken);
+    }
+
+    setToken(newToken);
+    setUser(response.data.user);
+
+    return response;
+  };
+
   const register = async (
     name,
     email,
@@ -143,6 +164,7 @@ export function AuthProvider({
         user,
         loading,
         login,
+        loginWithGoogle,
         register,
         logout,
       }}

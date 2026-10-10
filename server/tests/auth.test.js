@@ -1,14 +1,24 @@
+jest.mock("google-auth-library", () => ({
+  OAuth2Client: jest.fn().mockImplementation(() => ({
+    verifyIdToken: jest.fn(),
+  })),
+}));
+
 const request = require("supertest");
 const bcrypt = require("bcryptjs");
+const { OAuth2Client } = require("google-auth-library");
 
 const app = require("../src/app");
 const prisma = require("../src/config/prisma");
+const googleClient = OAuth2Client.mock.results[0].value;
 
 describe("Authentication API", () => {
   let adminToken;
   let customerToken;
 
   beforeAll(async () => {
+    process.env.GOOGLE_CLIENT_ID = "test-google-client-id";
+
     await prisma.repair.deleteMany();
     await prisma.product.deleteMany();
     await prisma.user.deleteMany();
@@ -150,6 +160,93 @@ describe("Authentication API", () => {
       response.body.error.code
     ).toBe(
       "INVALID_CREDENTIALS"
+    );
+  });
+
+  test("creates an account after verifying a Google ID token", async () => {
+    const email = `google-${Date.now()}@test.com`;
+    const googleId = `google-sub-${Date.now()}`;
+
+    googleClient.verifyIdToken.mockResolvedValueOnce({
+    getPayload: () => ({
+      sub: googleId,
+      email,
+      email_verified: true,
+      name: "Google Customer",
+    }),
+    });
+
+    const response = await request(app)
+    .post("/api/v1/auth/google")
+    .send({ credential: "valid-google-id-token" });
+
+    expect(response.statusCode).toBe(200);
+    expect(response.body.data.user.email).toBe(email);
+    expect(response.body.data.token).toBeDefined();
+    expect(googleClient.verifyIdToken).toHaveBeenCalledWith({
+    idToken: "valid-google-id-token",
+    audience: "test-google-client-id",
+    });
+
+    const user = await prisma.user.findUnique({
+    where: { googleId },
+    });
+    expect(user.email).toBe(email);
+    expect(user.password).toBeNull();
+  });
+
+  test("links Google sign-in to an existing account with a verified matching email", async () => {
+    const email = `link-${Date.now()}@test.com`;
+    const googleId = `google-link-${Date.now()}`;
+    const password = await bcrypt.hash("customer123", 10);
+    const existingUser = await prisma.user.create({
+    data: {
+      name: "Existing Customer",
+      email,
+      password,
+      role: "customer",
+    },
+    });
+
+    googleClient.verifyIdToken.mockResolvedValueOnce({
+    getPayload: () => ({
+      sub: googleId,
+      email,
+      email_verified: true,
+      name: "Google Customer",
+    }),
+    });
+
+    const response = await request(app)
+    .post("/api/v1/auth/google")
+    .send({ credential: "valid-google-id-token" });
+
+    expect(response.statusCode).toBe(200);
+    expect(response.body.data.user.id).toBe(existingUser.id);
+    expect(
+    await prisma.user.count({ where: { email } })
+    ).toBe(1);
+    expect(
+    await prisma.user.findUnique({ where: { id: existingUser.id } })
+    ).toMatchObject({ googleId, role: "customer" });
+  });
+
+  test("rejects an unverified Google email", async () => {
+    googleClient.verifyIdToken.mockResolvedValueOnce({
+    getPayload: () => ({
+      sub: "unverified-google-subject",
+      email: "unverified@test.com",
+      email_verified: false,
+    }),
+    });
+
+    const response = await request(app)
+    .post("/api/v1/auth/google")
+    .send({ credential: "unverified-google-id-token" });
+
+    expect(response.statusCode).toBe(401);
+    expect(response.body.error.code).toBe(
+    "UNVERIFIED_GOOGLE_ACCOUNT"
     );
   });
 

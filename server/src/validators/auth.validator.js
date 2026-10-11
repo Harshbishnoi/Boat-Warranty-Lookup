@@ -27,7 +27,15 @@ const loginSchema = z.object({
     .min(1, "Password is required"),
 });
 
+const googleLoginSchema = z.object({
+  credential: z
+    .string()
+    .min(1, "Google credential is required")
+    .max(8192, "Google credential is too large"),
+});
+
 module.exports = {
   registerSchema,
   loginSchema,
+  googleLoginSchema,
 };

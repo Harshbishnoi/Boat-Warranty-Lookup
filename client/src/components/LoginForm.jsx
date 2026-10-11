@@ -3,7 +3,12 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
+import { GoogleLogin } from "@react-oauth/google";
 import { useAuth } from "@/context/AuthContext";
+
+const googleClientId = process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID;
+const googleIsConfigured =
+  googleClientId && !googleClientId.startsWith("your-");
 
 export default function LoginForm() {
   const router = useRouter();
@@ -18,6 +23,30 @@ export default function LoginForm() {
   const [loading, setLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [rememberMe, setRememberMe] = useState(false);
+
+  const handleGoogleSuccess = async ({ credential }) => {
+    setError("");
+
+    if (!credential || !auth?.loginWithGoogle) {
+      setError("Google sign-in is unavailable. Please try again.");
+      return;
+    }
+
+    setLoading(true);
+    try {
+      await auth.loginWithGoogle(credential);
+      router.push("/account");
+      router.refresh();
+    } catch (err) {
+      setError(
+        err instanceof Error
+          ? err.message
+          : "Unable to sign in with Google. Please try again."
+      );
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -232,20 +261,26 @@ export default function LoginForm() {
       </div>
 
       {/* GOOGLE */}
-      <button
-        type="button"
-        className="google-login"
-        onClick={() =>
-          setError(
-            "Google sign in will be available soon."
-          )
-        }
-      >
-        <span className="google-icon">
-          G
-        </span>
-        Sign in with Google
-      </button>
+      {googleIsConfigured ? (
+        <div className="google-login">
+          <GoogleLogin
+            onSuccess={handleGoogleSuccess}
+            onError={() =>
+              setError("Google sign-in was cancelled or failed.")
+            }
+            text="signin_with"
+            theme="outline"
+            shape="rectangular"
+            size="large"
+            width={320}
+          />
+        </div>
+      ) : (
+        <p className="google-login-not-configured">
+          Google sign-in is not configured. Set
+          {" "}NEXT_PUBLIC_GOOGLE_CLIENT_ID in client/.env.local.
+        </p>
+      )}
 
       {/* SIGN UP */}
       <p className="login-signup">

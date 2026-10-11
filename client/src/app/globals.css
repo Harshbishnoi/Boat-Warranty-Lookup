@@ -5792,49 +5792,19 @@ textarea {
 
 .google-login {
   width: 100%;
-  height: 56px;
+  min-height: 44px;
 
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 12px;
-
-  border: 1px solid #3b3b3b;
-  border-radius: 10px;
-
-  background: rgba(255, 255, 255, 0.01);
-  color: #ffffff;
-
-  font-size: 15px;
-  font-weight: 600;
-
-  cursor: pointer;
-
-  transition:
-    background 0.2s ease,
-    border-color 0.2s ease;
+  overflow: hidden;
 }
 
-.google-login:hover {
-  background: rgba(255, 255, 255, 0.04);
-  border-color: #666;
-}
-
-.google-icon {
-  width: 24px;
-  height: 24px;
-
-  display: flex;
-  align-items: center;
-  justify-content: center;
-
-  border-radius: 50%;
-
-  background: #ffffff;
-  color: #4285f4;
-
-  font-weight: 800;
-  font-size: 14px;
+.google-login-not-configured {
+  color: #999;
+  font-size: 13px;
+  line-height: 1.6;
+  text-align: center;
 }
 
 /* =========================================================

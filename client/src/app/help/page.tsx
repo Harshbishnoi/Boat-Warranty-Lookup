@@ -8,6 +8,13 @@ const topics = [
     icon: "✓",
     href: "/warranty",
   },
+   {
+    title: "Live Chat",
+    description:
+      "Chat with our warranty assistant and get quick answers to your questions.",
+    icon: "💬",
+    href: "/contact/chat",
+  },
   {
     title: "Warranty Claim",
     description:

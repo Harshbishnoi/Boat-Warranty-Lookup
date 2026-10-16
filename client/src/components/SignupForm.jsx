@@ -2,7 +2,12 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { GoogleLogin } from "@react-oauth/google";
 import { useAuth } from "@/context/AuthContext";
+
+const googleClientId = process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID;
+const googleIsConfigured =
+  googleClientId && !googleClientId.startsWith("your-");
 
 export default function SignupForm() {
   const router = useRouter();
@@ -18,6 +23,30 @@ export default function SignupForm() {
 
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+
+  const handleGoogleSuccess = async ({ credential }) => {
+    setError("");
+
+    if (!credential || !auth?.loginWithGoogle) {
+      setError("Google sign-up is unavailable. Please try again.");
+      return;
+    }
+
+    setLoading(true);
+    try {
+      await auth.loginWithGoogle(credential);
+      router.push("/account");
+      router.refresh();
+    } catch (err) {
+      setError(
+        err instanceof Error
+          ? err.message
+          : "Unable to sign up with Google. Please try again."
+      );
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -231,6 +260,33 @@ export default function SignupForm() {
       >
         {loading ? "Creating Account..." : "Create Account →"}
       </button>
+
+      <div className="login-divider">
+        <span></span>
+        <strong>OR</strong>
+        <span></span>
+      </div>
+
+      {googleIsConfigured ? (
+        <div className="google-login">
+          <GoogleLogin
+            onSuccess={handleGoogleSuccess}
+            onError={() =>
+              setError("Google sign-up was cancelled or failed.")
+            }
+            text="signup_with"
+            theme="outline"
+            shape="rectangular"
+            size="large"
+            width={320}
+          />
+        </div>
+      ) : (
+        <p className="google-login-not-configured">
+          Google sign-up is not configured. Set
+          {" "}NEXT_PUBLIC_GOOGLE_CLIENT_ID in client/.env.local.
+        </p>
+      )}
 
     </form>
   );
